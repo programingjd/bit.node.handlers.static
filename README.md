@@ -1,4 +1,4 @@
-![Node version](https://img.shields.io/badge/node-%3E%3D11.7.0-blue)
+[![Node.js version](https://img.shields.io/badge/node-%3E%3D11.7.0-blue)](https://nodejs.org)
 
 Node.js module.
 
