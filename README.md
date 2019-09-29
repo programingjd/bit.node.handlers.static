@@ -1,6 +1,6 @@
 [![Node.js version](https://img.shields.io/badge/node-%3E%3D11.7.0-blue)](https://nodejs.org)
 [![Bit.dev package](https://img.shields.io/badge/%20bit%20-programingjd.node%2Fhandlers%2Fstatic-blueviolet)](https://bit.dev/programingjd/node/handlers/static)
-![GitHub package.json version](https://img.shields.io/github/package-json/v/programingjd/bit.node.handlers.static)](https://bit.dev/programingjd/node/handlers/static)
+[![GitHub package.json version](https://img.shields.io/github/package-json/v/programingjd/bit.node.handlers.static)](https://bit.dev/programingjd/node/handlers/static)
 [![GitHub](https://img.shields.io/github/license/programingjd/bit.node.handlers.static)](LICENSE)
 
 Node.js module.
