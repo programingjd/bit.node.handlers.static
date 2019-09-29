@@ -1,0 +1,26 @@
+{
+  "name": "bit.node.handlers.static",
+  "version": "1.0.0",
+  "description": "nodejs http handler for serving static files",
+  "main": "static.js",
+  "scripts": {
+    "preinstall": "npm list -g bit-bin -g || npm install bit-bin -g --unsafe-perm"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/programingjd/bit.node.handlers.static.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/programingjd/bit.node.handlers.static/issues"
+  },
+  "homepage": "https://github.com/programingjd/bit.node.handlers.static#readme",
+  "bit": {
+    "env": {},
+    "componentsDefaultDirectory": "lib/{name}",
+    "dependenciesDirectory": "lib",
+    "saveDependenciesAsComponents":true,
+    "packageManager": "npm"
+  }
+}
