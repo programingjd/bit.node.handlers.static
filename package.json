@@ -24,7 +24,7 @@
     "env": {},
     "componentsDefaultDirectory": "lib/{name}",
     "dependenciesDirectory": "lib",
-    "saveDependenciesAsComponents":true,
+    "saveDependenciesAsComponents": true,
     "packageManager": "npm"
   }
 }
