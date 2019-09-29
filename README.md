@@ -1,3 +1,5 @@
+![Node version](https://img.shields.io/badge/node-%3E%3D11.7.0-blue)
+
 Node.js module.
 
 Http handler for serving static files.
