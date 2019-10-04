@@ -19,6 +19,7 @@ const types={
   jsonld: { headers: {'Content-Type':'application/ld+json','Cache-Control':'public,max-age=3600,must-revalidate'}, compress: true },
   geojson: { headers: {'Content-Type':'application/geo+json','Cache-Control':'public,max-age=86400,must-revalidate'}, compress: true },
   topojson: { headers: {'Content-Type':'application/json','Cache-Control':'public,max-age=86400,must-revalidate'}, compress: true },
+  yaml: { headers: {'Content-Type':'text/yaml','Cache-Control':'public,max-age=3600,must-revalidate'}, compress: true },
   woff: { headers: {'Content-Type':'application/font-woff','Cache-Control':'public,immutable'}, compress: false },
   woff2: { headers: {'Content-Type':'font/woff2','Cache-Control':'public,immutable'}, compress: false },
   jpg: { headers: {'Content-Type':'image/jpeg','Cache-Control':'public,immutable'}, compress: false },
