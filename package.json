@@ -5,7 +5,7 @@
   "main": "static.js",
   "scripts": {
     "preinstall": "npm list -g bit-bin -g || npm install bit-bin -g --unsafe-perm",
-    "test": "node test.js"
+    "test": "mocha test/static.spec.js"
   },
   "repository": {
     "type": "git",
@@ -26,5 +26,8 @@
     "dependenciesDirectory": "lib",
     "saveDependenciesAsComponents": true,
     "packageManager": "npm"
+  },
+  "devDependencies": {
+    "mocha": "^6.2.1"
   }
 }

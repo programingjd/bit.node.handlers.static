@@ -8,24 +8,24 @@ const types={
   css: { headers: {'Content-Type': 'text/css','Cache-Control':'public,no-cache' }, compress: true },
   htm: { headers: {'Content-Type': 'text/html','Cache-Control':'public,no-cache' }, compress: true },
   html: { headers: {'Content-Type': 'text/html','Cache-Control':'public,no-cache' }, compress: true },
-  txt: { headers: {'Content-Type': 'text/plain','Cache-Control':'max-age=86400,must-revalidate' }, compress: true },
-  csv: { headers: {'Content-Type': 'text/csv','Cache-Control':'max-age=86400,must-revalidate' }, compress: true },
-  xml: { headers: {'Content-Type': 'application/xml','Cache-Control':'max-age=86400,must-revalidate' }, compress: true },
-  json: { headers: {'Content-Type': 'application/json','Cache-Control':'max-age=3600,must-revalidate' }, compress: true },
-  woff: { headers: {'Content-Type': 'application/font-woff','Cache-Control':'immutable' }, compress: false },
-  woff2: { headers: {'Content-Type': 'font/woff2','Cache-Control':'immutable' }, compress: false },
-  jpg: { headers: {'Content-Type': 'image/jpeg','Cache-Control':'immutable' }, compress: false },
-  png: { headers: {'Content-Type': 'image/png','Cache-Control':'immutable' }, compress: false },
-  svg: { headers: {'Content-Type': 'image/svg+xml','Cache-Control':'immutable' }, compress: true },
-  ico: { headers: {'Content-Type': 'image/x-icon','Cache-Control':'immutable' }, compress: false },
-  webp: { headers: {'Content-Type': 'image/webp','Cache-Control':'immutable' }, compress: false },
-  mp4: { headers: {'Content-Type': 'video/mp4','Cache-Control':'immutable' }, compress: false },
-  webm: { headers: {'Content-Type': 'video/webm','Cache-Control':'immutable' }, compress: false },
+  txt: { headers: {'Content-Type': 'text/plain','Cache-Control':'public,max-age=86400,must-revalidate' }, compress: true },
+  csv: { headers: {'Content-Type': 'text/csv','Cache-Control':'public,max-age=86400,must-revalidate' }, compress: true },
+  xml: { headers: {'Content-Type': 'application/xml','Cache-Control':'public,max-age=86400,must-revalidate' }, compress: true },
+  json: { headers: {'Content-Type': 'application/json','Cache-Control':'public,max-age=3600,must-revalidate' }, compress: true },
+  woff: { headers: {'Content-Type': 'application/font-woff','Cache-Control':'public,immutable' }, compress: false },
+  woff2: { headers: {'Content-Type': 'font/woff2','Cache-Control':'public,immutable' }, compress: false },
+  jpg: { headers: {'Content-Type': 'image/jpeg','Cache-Control':'public,immutable' }, compress: false },
+  png: { headers: {'Content-Type': 'image/png','Cache-Control':'public,immutable' }, compress: false },
+  svg: { headers: {'Content-Type': 'image/svg+xml','Cache-Control':'public,immutable' }, compress: true },
+  ico: { headers: {'Content-Type': 'image/x-icon','Cache-Control':'public,immutable' }, compress: false },
+  webp: { headers: {'Content-Type': 'image/webp','Cache-Control':'public,immutable' }, compress: false },
+  mp4: { headers: {'Content-Type': 'video/mp4','Cache-Control':'public,immutable' }, compress: false },
+  webm: { headers: {'Content-Type': 'video/webm','Cache-Control':'public,immutable' }, compress: false },
   zip: { headers: {'Content-Type': 'application/zip','Cache-Control':'public,no-cache' }, compress: false },
   pdf: { headers: {'Content-Type': 'application/pdf','Cache-Control':'public,no-cache' }, compress: true },
-  wav: { headers: {'Content-Type': 'audio/x-wav','Cache-Control':'immutable' }, compress: true },
-  mp3: { headers: {'Content-Type': 'audio/mp3','Cache-Control':'immutable' }, compress: false },
-  manifest: { headers: {'Content-Type': 'application/manifest+json','Cache-Control':'max-age=3600,must-revalidate' }, compress: true },
+  wav: { headers: {'Content-Type': 'audio/x-wav','Cache-Control':'public,immutable' }, compress: true },
+  mp3: { headers: {'Content-Type': 'audio/mp3','Cache-Control':'public,immutable' }, compress: false },
+  manifest: { headers: {'Content-Type': 'application/manifest+json','Cache-Control':'public,max-age=3600,must-revalidate' }, compress: true },
 };
 
 const gz=async uncompressed=>{
@@ -80,12 +80,15 @@ const uriPath=uri=>{
 /**
  * @async
  * @params {string=} root
+ * @params {string=} prefix
+ * @params {boolean=} disallowSharedCache
  * @returns {{accept:function,handle:function}}
  */
-module.exports=async (root='www')=>{
+module.exports=async (root='www', prefix='', disallowSharedCache=false)=>{
+  if (prefix&&prefix.charAt(prefix.length-1)==='/') prefix=prefix.substring(0,prefix.length-1);
   /**
    * @type {
-   *   Map<string, {headers:Object<string,string>,data:{identity:Buffer,br:Buffer?,gzip:Buffer?}}>
+   *   Map<string, {headers:Object<string,string>,data?:{identity:Buffer,br:Buffer?,gzip:Buffer?}}>
    * }
    */
   const cache=new Map();
@@ -102,32 +105,37 @@ module.exports=async (root='www')=>{
             const isDir = (await fs.lstat(path)).isDirectory();
             return isDir?{ path: path, directory: true }:{ path: path, type: types[ext] };
           })
-        )).filter(it=>it.directory||it.type).map(async it=>it.directory?await walk(it.path):it)
+        )).filter(it=>it.directory||it.type).map(async it=>it.directory?[it, ...await walk(it.path)]:it)
       )).flat(99);
     };
-    const files=await walk(root);
+    const files=[{ path: root, directory: true }, ...await walk(root)];
     await Promise.all(files.map(async it=>{
-      const type=it.type;
-      const uncompressed=await fs.readFile(it.path);
-      const headers=Object.assign({ 'ETag': etag(uncompressed) },type.headers);
-      const data=type.compress?{
-        identity: uncompressed,
-        gzip: await gz(uncompressed),
-        br: await br(uncompressed),
-      }:{ identity: uncompressed };
-      cache.set(
-        it.path.substring(root.length).
-          replace(/[/]index.html$/,'').
-          replace(/^[/]/,''),
-        { data: data, headers: headers }
-      );
+      if(it.directory){
+        const path = prefix + it.path.substring(root.length);
+        const location = `${path}/`.replace(/[/]{2,}/,'/');
+        cache.set(path, { headers: { 'Location': location } });
+      }
+      else{
+        const type=it.type;
+        const uncompressed=await fs.readFile(it.path);
+        const headers=Object.assign({ 'ETag': etag(uncompressed) },type.headers);
+        if(disallowSharedCache&&headers['Cache-Control']) headers['Cache-Control']=headers['Cache-Control'].replace('public','private');
+        const data=type.compress?{
+          identity: uncompressed,
+          gzip: await gz(uncompressed),
+          br: await br(uncompressed),
+        }:{ identity: uncompressed };
+        cache.set(
+          (prefix + it.path.substring(root.length)).
+            replace(/index.html$/,''),
+          { data: data, headers: headers }
+        );
+      }
     }));
     [...cache.entries()].sort((a,b)=>{return a[0]<b[0]?-1:1}).forEach(it=>{
-      if(it[1].data.br){
-        console.log(`${it[0]} ${it[1].data.br.length} ${it[1].data.identity.length}`);
-      }
-      else {
-        console.log(`${it[0]} ${it[1].data.identity.length}`);
+      if(it[1].data){
+        if(it[1].data.br) console.log(`${it[0]} ${it[1].data.br.length} ${it[1].data.identity.length}`);
+        else console.log(`${it[0]} ${it[1].data.identity.length}`);
       }
     });
     console.log('\n\n');
@@ -136,7 +144,7 @@ module.exports=async (root='www')=>{
   return {
     accept: (request,response,hostname,remoteAddress,local)=>{
       const path=uriPath(request.url);
-      const found=cache.get(path.substring(1));
+      const found=cache.get(path);
       if(!found){
         return request.url==='/sync'&&local?[ null,request,response ]:null;
       }
@@ -159,6 +167,7 @@ module.exports=async (root='www')=>{
       const method=request.method.toLowerCase();
       if(method!=='head'&&method!=='get') return response.writeHead(405).end();
       const headers=Object.assign({ 'Server': 'Custom', 'Vary': 'Accept-Encoding' },found.headers);
+      if(!found.data) return response.writeHead(301,headers).end();
       const etag=request.headers['if-none-match'];
       if(etag&&etag===found.headers['ETag']) return response.writeHead(304,headers).end();
       if(found.data.br||found.data.gzip){
