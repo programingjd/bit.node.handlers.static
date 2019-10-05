@@ -123,7 +123,7 @@ const etag=data=>{
 const Encodings={
   identity: 'identity',
   gzip: 'gzip',
-  brotli: 'brotli'
+  brotli: 'br'
 };
 
 /**

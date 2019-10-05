@@ -49,18 +49,19 @@ const Methods={
  * Performs an http request to the local server.
  * @param {string} path
  * @param {Methods=} method
- * @param {Object<string,string>} extraHeaders
+ * @param {Object<string,string>?} extraHeaders
  * @returns {Promise<Response>}
  */
-const request=(path,method=Methods.get,extraHeaders={})=>new Promise((resolve,reject)=>{
-  const request=http.request({
+const request=(path,method=Methods.get,extraHeaders)=>new Promise((resolve,reject)=>{
+  const options = {
     host: 'localhost',
     port: port,
     path: path,
-    headers: extraHeaders,
     method: method.toUpperCase()
-  });
-  const data=[];
+  };
+  if(extraHeaders) options.headers = extraHeaders;
+  const request = http.request(options);
+  const data = [];
   let status = 0;
   let headers = new Map();
   let error = undefined;
@@ -109,89 +110,96 @@ describe('Status Codes', ()=>{
    * @param {Response} response
    * @param {number} expectedStatusCode
    */
-  const checkStatus=(response,expectedStatusCode)=>{
+  const checkStatus = (response,expectedStatusCode)=>{
     assert.strictEqual(response.status,expectedStatusCode);
   };
 
   describe('404 Not Found', ()=>{
     const expectedStatusCode = 404;
     it('HEAD request to non existing html file', async()=>{
-      const response = await request('/non_existing.html', 'head');
+      const response = await request('/non_existing.html', Methods.head);
       checkStatus(response, expectedStatusCode);
     });
     it('GET request to non existing html file', async()=>{
-      const response = await request('/non_existing.html', 'get');
+      const response = await request('/non_existing.html', Methods.get);
       checkStatus(response, expectedStatusCode);
     });
     it('HEAD request to non existing html file in a sub directory', async()=>{
-      const response = await request('/dir1/not_there.html', 'head');
+      const response = await request('/dir1/not_there.html', Methods.head);
       checkStatus(response, expectedStatusCode);
     });
     it('HEAD request to non existing json file in a sub directory', async()=>{
-      const response = await request('/dir1/data.json', 'head');
+      const response = await request('/dir1/data.json', Methods.head);
       checkStatus(response, expectedStatusCode);
     });
     it('HEAD request to an existing index file', async()=>{
-      const response = await request('/index.html', 'head');
+      const response = await request('/index.html', Methods.head);
       checkStatus(response, expectedStatusCode);
     });
     it('GET request to an existing index file in a sub directory', async()=>{
-      const response = await request('/dir1/index.html', 'get');
+      const response = await request('/dir1/index.html', Methods.get);
       checkStatus(response, expectedStatusCode);
     });
     it('HEAD request to an existing file with unsupported type', async()=>{
-      const response = await request('/file.unknown', 'head');
+      const response = await request('/file.unknown', Methods.head);
       checkStatus(response, expectedStatusCode);
     });
     it('GET request to an existing file with unsupported type in a sub directory', async()=>{
-      const response = await request('/dir2/not.served', 'get');
+      const response = await request('/dir2/not.served', Methods.get);
       checkStatus(response, expectedStatusCode);
     });
     it('HEAD request to a hidden json file', async()=>{
-      const response = await request('/.hidden.json', 'head');
+      const response = await request('/.hidden.json', Methods.head);
       checkStatus(response, expectedStatusCode);
     });
     it('GET request to a hidden text file in a sub directory', async()=>{
-      const response = await request('/dir2/.hidden.txt', 'get');
+      const response = await request('/dir2/.hidden.txt', Methods.get);
       checkStatus(response, expectedStatusCode);
     });
     it('HEAD request to a hidden directory with an existing index file', async()=>{
-      const response = await request('/.hiddendir/', 'head');
+      const response = await request('/.hiddendir/', Methods.head);
       checkStatus(response, expectedStatusCode);
     });
     it('GET request to an existing text field in a hidden directory', async()=>{
-      const response = await request('/.hiddendir/data.txt', 'get');
+      const response = await request('/.hiddendir/data.txt', Methods.get);
+      checkStatus(response, expectedStatusCode);
+    });
+  });
+  describe('405 Method Not Allowed', ()=>{
+    const expectedStatusCode = 405;
+    it('DELETE request to an existing image file', async()=>{
+      const response = await request('/1px.jpg', Methods.delete);
       checkStatus(response, expectedStatusCode);
     });
   });
   describe('200 OK', ()=>{
     const expectedStatusCode = 200;
     it('HEAD request to an existing image file', async()=>{
-      const response = await request('/1px.jpg', 'head');
+      const response = await request('/1px.jpg', Methods.head);
       checkStatus(response, expectedStatusCode);
     });
     it('GET request to an existing json file in a sub directory', async()=>{
-      const response = await request('/dir2/data.json', 'head');
+      const response = await request('/dir2/data.json', Methods.head);
       checkStatus(response, expectedStatusCode);
     });
     it('HEAD request to the root directory with an existing index file', async()=>{
-      const response = await request('/', 'head');
+      const response = await request('/', Methods.head);
       checkStatus(response, expectedStatusCode);
     });
     it('GET request to a sub directory with an existing index file', async()=>{
-      const response = await request('/dir1/dir3/', 'head');
+      const response = await request('/dir1/dir3/', Methods.head);
       checkStatus(response, expectedStatusCode);
     });
   });
   describe('301 Moved Permanently',()=>{
     const expectedStatusCode = 301;
     it('HEAD request to a directory with an index without the trailing slash', async()=>{
-      const response = await request('/dir1', 'head');
+      const response = await request('/dir1', Methods.head);
       checkStatus(response, expectedStatusCode);
       assert.strictEqual(response.headers.get('location'), '/dir1/');
     });
     it('GET request to a sub directory with an index without the trailing slash', async()=>{
-      const response = await request('/dir1/dir3', 'get');
+      const response = await request('/dir1/dir3', Methods.get);
       checkStatus(response, expectedStatusCode);
       assert.strictEqual(response.headers.get('location'), '/dir1/dir3/');
     });
@@ -202,24 +210,24 @@ describe('Status Codes', ()=>{
      * @param {Response} response
      * @param {string} expectedETag
      */
-    const checkETag=(response,expectedETag)=>{
+    const checkETag = (response,expectedETag)=>{
       assert.strictEqual(response.headers.get('etag'), expectedETag);
     };
     it('HEAD request to an image file', async()=>{
       const etag = '+X9YZcJ547YGJ7jhunUrmRXjhy3ygUrrIhckuNIy1mY';
-      const response = await request('/1px.jpg', 'head', { 'If-None-Match': etag });
+      const response = await request('/1px.jpg', Methods.head, { 'if-none-match': etag });
       checkETag(response, etag);
       checkStatus(response, expectedStatusCode);
     });
     it('GET request to a directory index file', async()=>{
       const etag = '9VY0i3gpHKQsFLVJVjK9HOMnWhFHOd+F31ArxHssWNw';
-      const response = await request('/dir1/dir3/', 'head', { 'If-None-Match': etag });
+      const response = await request('/dir1/dir3/', Methods.head, { 'if-none-match': etag });
       checkETag(response, etag);
       checkStatus(response, expectedStatusCode);
     });
     it('HEAD request to a javascript file', async()=>{
       const etag = 'bBXtwZqz5iyXqKK1XZsZbAyuMEkl8HiofD-GhqEcJk4';
-      const response = await request('/other/dir1/script.js', 'head', { 'If-None-Match': etag });
+      const response = await request('/other/dir1/script.js', Methods.head, { 'if-none-match': etag });
       checkETag(response, etag);
       checkStatus(response, expectedStatusCode);
     });
@@ -231,7 +239,7 @@ describe('Cache-Control',()=>{
    * @param {Response} response
    * @param {string...} expectedDirectives
    */
-  const checkCacheControl=(response, ...expectedDirectives)=>{
+  const checkCacheControl = (response, ...expectedDirectives)=>{
     const cacheControls = response.headers.get('cache-control').split(',');
     for (const directive of expectedDirectives) {
       assert.strictEqual(cacheControls.find(it=>it===directive), directive);
@@ -240,64 +248,63 @@ describe('Cache-Control',()=>{
   /**
    * @param {Response} response
    */
-  const checkETag=(response)=>{
+  const checkETag = response=>{
     assert.strictEqual([...response.headers.keys()].find(it=>it==='etag'), 'etag');
   };
   describe('Resources with potential frequent modifications',()=>{
     it('HEAD request to a javascript file', async()=>{
-      const response = await request('/dir1/script.js', 'head');
+      const response = await request('/dir1/script.js', Methods.head);
       checkCacheControl(response,'public', 'no-cache');
       checkETag(response);
     });
     it('GET request to a javascript module file', async()=>{
-      const response = await request('/dir1/module.mjs', 'get');
+      const response = await request('/dir1/module.mjs', Methods.get);
       checkCacheControl(response,'public', 'no-cache');
       checkETag(response);
     });
     it('HEAD request to a css file', async()=>{
-      const response = await request('/dir1/a.css', 'head');
+      const response = await request('/dir1/a.css', Methods.head);
       checkCacheControl(response,'public', 'no-cache');
       checkETag(response);
     });
     it('GET request to an html file', async()=>{
-      const response = await request('/dir1/a.html', 'get');
+      const response = await request('/dir1/a.html', Methods.get);
       checkCacheControl(response,'public', 'no-cache');
       checkETag(response);
     });
   });
   describe('Resources with infrequent modifications',()=>{
     it('HEAD request to text file', async()=>{
-      const response = await request('/dir2/info.txt', 'head');
+      const response = await request('/dir2/info.txt', Methods.head);
       checkCacheControl(response,'public', 'must-revalidate', 'max-age=86400');
       checkETag(response);
     });
     it('GET request to a json file', async()=>{
-      const response = await request('/dir2/data.json', 'get');
-      const cacheControls = response.headers.get('cache-control').split(',');
+      const response = await request('/dir2/data.json', Methods.get);
       checkCacheControl(response,'public', 'must-revalidate', 'max-age=3600');
       checkETag(response);
     });
   });
   describe('Immutable resources',()=>{
     it('HEAD request to an image file', async()=>{
-      const response = await request('/1px.jpg', 'head');
+      const response = await request('/1px.jpg', Methods.head);
       checkCacheControl(response,'public', 'immutable');
       checkETag(response);
     });
     it('GET request to an image file', async()=>{
-      const response = await request('/1px.png', 'get');
+      const response = await request('/1px.png', Methods.get);
       checkCacheControl(response,'public', 'immutable');
       checkETag(response);
     });
   });
   describe('Disallowed shared cache', ()=>{
     it('HEAD request to an imagefile', async()=>{
-      const response = await request('/other/1px.png', 'head');
+      const response = await request('/other/1px.png', Methods.head);
       checkCacheControl(response,'private', 'immutable');
       checkETag(response);
     });
     it('GET request to a json file', async()=>{
-      const response = await request('/other/dir2/data.json', 'get');
+      const response = await request('/other/dir2/data.json', Methods.get);
       checkCacheControl(response,'private', 'must-revalidate', 'max-age=3600');
       checkETag(response);
     });
@@ -306,74 +313,105 @@ describe('Cache-Control',()=>{
 
 describe('Content', ()=>{
   describe('Content-Type and Content-Length', ()=>{
+    /**
+     * @param {Response} response
+     * @param {string} expectedContentType
+     */
+    const checkContentType = (response, expectedContentType)=>{
+      assert.strictEqual(response.headers.get('content-type'), expectedContentType);
+    };
+    /**
+     * @param {Response} response
+     * @param {number} expectedContentLength
+     */
+    const checkContentLength = (response, expectedContentLength)=>{
+      assert.strictEqual(parseInt(response.headers.get('content-length')), expectedContentLength);
+    };
     it('HEAD request to a text file', async()=>{
-      const response = await request('/dir2/info.txt', 'head');
-      assert.strictEqual(response.headers.get('content-type'), 'text/plain');
-      assert.strictEqual(parseInt(response.headers.get('content-length')), 6);
+      const response = await request('/dir2/info.txt', Methods.head);
+      checkContentType(response, 'text/plain');
+      checkContentLength(response, 6);
     });
     it('GET request to a json file', async()=>{
-      const response = await request('/other/data.json', 'get');
-      assert.strictEqual(response.headers.get('content-type'), 'application/json');
-      assert.strictEqual(parseInt(response.headers.get('content-length')), 15);
+      const response = await request('/other/data.json', Methods.get);
+      checkContentType(response, 'application/json');
+      checkContentLength(response, 15);
     });
     it('HEAD request to a directory index file', async()=>{
-      const response = await request('/dir1/', 'head');
-      assert.strictEqual(response.headers.get('content-type'), 'text/html');
-      assert.strictEqual(parseInt(response.headers.get('content-length')), 131);
+      const response = await request('/dir1/', Methods.head);
+      checkContentType(response, 'text/html');
+      checkContentLength(response, 131);
     });
   });
   describe('Compression', ()=>{
+    /**
+     * Supported encodings.
+     * @readonly
+     * @enum {string}
+     */
+    const Encodings={
+      identity: 'identity',
+      gzip: 'gzip',
+      brotli: 'br'
+    };
+    /**
+     * @param {Response} response
+     * @param {Encodings} expectedEncoding
+     */
+    const checkContentEncoding = (response, expectedEncoding)=>{
+      assert.strictEqual(response.headers.get('content-encoding'), expectedEncoding === Encodings.identity ? undefined : expectedEncoding);
+    };
     describe('none', ()=>{
       it('HEAD request to a text file', async()=>{
-        const response = await request('/dir2/info.txt', 'head', { 'Accept-Encoding': 'entity' });
-        assert.strictEqual(response.headers.get('content-encoding'), undefined);
+        const response = await request('/dir2/info.txt', Methods.head, { 'Accept-Encoding': 'entity' });
+        checkContentEncoding(response, Encodings.identity);
       });
       it('GET request to a json file', async()=>{
-        const response = await request('/other/data.json', 'get', { 'Accept-Encoding': 'entity' });
-        assert.strictEqual(response.headers.get('content-encoding'), undefined);
+        const response = await request('/other/data.json', Methods.get, { 'Accept-Encoding': 'entity' });
+        checkContentEncoding(response, Encodings.identity);
         assert.strictEqual(response.body.toString().trim(), '{"root":true}')
       });
       it('HEAD request to a directory index file', async()=>{
-        const response = await request('/dir1/', 'head', { 'Accept-Encoding': 'entity' });
-        assert.strictEqual(response.headers.get('content-encoding'), undefined);
+        const response = await request('/dir1/', Methods.head, { 'Accept-Encoding': 'entity' });
+        checkContentEncoding(response, Encodings.identity);
+      });
+      it('HEAD request to an image file', async()=>{
+        const response = await request('/1px.jpg', Methods.head, { 'Accept-Encoding': 'gzip' });
+        checkContentEncoding(response, Encodings.identity);
+      });
+      it('HEAD request to an image file', async()=>{
+        const response = await request('/1px.jpg', Methods.head, { 'Accept-Encoding': 'br' });
+        checkContentEncoding(response, Encodings.identity);
       });
     });
     describe('gzip', ()=>{
       it('HEAD request to a text file', async()=>{
-        const response = await request('/dir2/info.txt', 'head', { 'Accept-Encoding': 'gzip' });
-        assert.strictEqual(response.headers.get('content-encoding'), 'gzip');
+        const response = await request('/dir2/info.txt', Methods.head, { 'Accept-Encoding': 'gzip' });
+        checkContentEncoding(response, Encodings.gzip);
       });
       it('GET request to a json file', async()=>{
-        const response = await request('/other/data.json', 'get', { 'Accept-Encoding': 'gzip' });
-        assert.strictEqual(response.headers.get('content-encoding'), 'gzip');
+        const response = await request('/other/data.json', Methods.get, { 'Accept-Encoding': 'gzip' });
+        checkContentEncoding(response, Encodings.gzip);
         assert.strictEqual((await gz(response.body)).toString().trim(), '{"root":true}')
       });
       it('HEAD request to a directory index file', async()=>{
-        const response = await request('/dir1/', 'head', { 'Accept-Encoding': 'gzip' });
-        assert.strictEqual(response.headers.get('content-encoding'), 'gzip');
-      });
-      it('HEAD request to an image file', async()=>{
-        const response = await request('/1px.jpg', 'head', { 'Accept-Encoding': 'gzip' });
-        assert.strictEqual(response.headers.get('content-encoding'), undefined);
+        const response = await request('/dir1/', Methods.head, { 'Accept-Encoding': 'gzip' });
+        checkContentEncoding(response, Encodings.gzip);
       });
     });
     describe('brotli', ()=>{
       it('HEAD request to a text file', async()=>{
-        const response = await request('/dir2/info.txt', 'head', { 'Accept-Encoding': 'br' });
-        assert.strictEqual(response.headers.get('content-encoding'), 'br');
+        const response = await request('/dir2/info.txt', Methods.head, { 'Accept-Encoding': 'br' });
+        checkContentEncoding(response, Encodings.brotli);
       });
       it('GET request to a json file', async()=>{
-        const response = await request('/other/data.json', 'get', { 'Accept-Encoding': 'br' });
-        assert.strictEqual(response.headers.get('content-encoding'), 'br');
+        const response = await request('/other/data.json', Methods.get, { 'Accept-Encoding': 'br' });
+        checkContentEncoding(response, Encodings.brotli);
         assert.strictEqual((await br(response.body)).toString().trim(), '{"root":true}')
       });
       it('HEAD request to a directory index file', async()=>{
-        const response = await request('/dir1/', 'head', { 'Accept-Encoding': 'br' });
-        assert.strictEqual(response.headers.get('content-encoding'), 'br');
-      });
-      it('HEAD request to an image file', async()=>{
-        const response = await request('/1px.jpg', 'head', { 'Accept-Encoding': 'br' });
-        assert.strictEqual(response.headers.get('content-encoding'), undefined);
+        const response = await request('/dir1/', Methods.head, { 'Accept-Encoding': 'br' });
+        checkContentEncoding(response, Encodings.brotli);
       });
     });
   });
