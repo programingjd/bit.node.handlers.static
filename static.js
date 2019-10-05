@@ -171,12 +171,11 @@ const uriPath=uri=>{
  */
 
 /**
- * @params {DirectoryOptions} options
+ * @params {DirectoryOptions={}} options
  * @template T
  * @returns {Promise<{accept:function():T,handle:function(T)}>}
  */
-// module.exports=async (root='www', prefix='', disallowSharedCache=false)=>{
-module.exports=async options=>{
+module.exports=async (options={})=>{
   options.root = options.root || 'www';
   options.prefix = options.prefix || '';
   const root = options.root;
