@@ -5,19 +5,54 @@ const staticHandler = require('../static');
 
 const port = 8080;
 
+/**
+ * Performs a gzip decompression.
+ * @param {Buffer} compressed
+ * @returns {Promise<Buffer>}
+ */
 const gz=async compressed=>{
   return new Promise((resolve)=>{
     zlib.gunzip(compressed,(err,uncompressed)=>resolve(uncompressed))
   });
 };
 
+/**
+ * Performs a brotli decompression.
+ * @param {Buffer} compressed
+ * @returns {Promise<Buffer>}
+ */
 const br=async compressed=>{
   return new Promise((resolve)=>{
     zlib.brotliDecompress(compressed, (err,uncompressed)=>resolve(uncompressed))
   });
 };
 
-const request=(path,method='get',extraHeaders={})=>new Promise((resolve,reject)=>{
+/**
+ * Http methods.
+ * @readonly
+ * @enum {string}
+ */
+const Methods={
+  head: 'head',
+  get: 'get',
+  delete: 'delete'
+};
+
+/**
+ * @typedef {Object<string,*>} Response
+ * @property {number} status
+ * @property {Map<String,String>} headers
+ * @property {Buffer} body
+ */
+
+/**
+ * Performs an http request to the local server.
+ * @param {string} path
+ * @param {Methods=} method
+ * @param {Object<string,string>} extraHeaders
+ * @returns {Promise<Response>}
+ */
+const request=(path,method=Methods.get,extraHeaders={})=>new Promise((resolve,reject)=>{
   const request=http.request({
     host: 'localhost',
     port: port,
@@ -70,188 +105,201 @@ after(()=>{
 });
 
 describe('Status Codes', ()=>{
+  /**
+   * @param {Response} response
+   * @param {number} expectedStatusCode
+   */
+  const checkStatus=(response,expectedStatusCode)=>{
+    assert.strictEqual(response.status,expectedStatusCode);
+  };
+
   describe('404 Not Found', ()=>{
+    const expectedStatusCode = 404;
     it('HEAD request to non existing html file', async()=>{
       const response = await request('/non_existing.html', 'head');
-      assert.strictEqual(response.status, 404);
+      checkStatus(response, expectedStatusCode);
     });
     it('GET request to non existing html file', async()=>{
       const response = await request('/non_existing.html', 'get');
-      assert.strictEqual(response.status, 404);
+      checkStatus(response, expectedStatusCode);
     });
     it('HEAD request to non existing html file in a sub directory', async()=>{
       const response = await request('/dir1/not_there.html', 'head');
-      assert.strictEqual(response.status, 404);
+      checkStatus(response, expectedStatusCode);
     });
     it('HEAD request to non existing json file in a sub directory', async()=>{
       const response = await request('/dir1/data.json', 'head');
-      assert.strictEqual(response.status, 404);
+      checkStatus(response, expectedStatusCode);
     });
     it('HEAD request to an existing index file', async()=>{
       const response = await request('/index.html', 'head');
-      assert.strictEqual(response.status, 404);
+      checkStatus(response, expectedStatusCode);
     });
     it('GET request to an existing index file in a sub directory', async()=>{
       const response = await request('/dir1/index.html', 'get');
-      assert.strictEqual(response.status, 404);
+      checkStatus(response, expectedStatusCode);
     });
     it('HEAD request to an existing file with unsupported type', async()=>{
       const response = await request('/file.unknown', 'head');
-      assert.strictEqual(response.status, 404);
+      checkStatus(response, expectedStatusCode);
     });
     it('GET request to an existing file with unsupported type in a sub directory', async()=>{
       const response = await request('/dir2/not.served', 'get');
-      assert.strictEqual(response.status, 404);
+      checkStatus(response, expectedStatusCode);
     });
     it('HEAD request to a hidden json file', async()=>{
       const response = await request('/.hidden.json', 'head');
-      assert.strictEqual(response.status, 404);
+      checkStatus(response, expectedStatusCode);
     });
     it('GET request to a hidden text file in a sub directory', async()=>{
       const response = await request('/dir2/.hidden.txt', 'get');
-      assert.strictEqual(response.status, 404);
+      checkStatus(response, expectedStatusCode);
     });
     it('HEAD request to a hidden directory with an existing index file', async()=>{
       const response = await request('/.hiddendir/', 'head');
-      assert.strictEqual(response.status, 404);
+      checkStatus(response, expectedStatusCode);
     });
     it('GET request to an existing text field in a hidden directory', async()=>{
       const response = await request('/.hiddendir/data.txt', 'get');
-      assert.strictEqual(response.status, 404);
+      checkStatus(response, expectedStatusCode);
     });
   });
   describe('200 OK', ()=>{
+    const expectedStatusCode = 200;
     it('HEAD request to an existing image file', async()=>{
       const response = await request('/1px.jpg', 'head');
-      assert.strictEqual(response.status, 200);
+      checkStatus(response, expectedStatusCode);
     });
     it('GET request to an existing json file in a sub directory', async()=>{
       const response = await request('/dir2/data.json', 'head');
-      assert.strictEqual(response.status, 200);
+      checkStatus(response, expectedStatusCode);
     });
     it('HEAD request to the root directory with an existing index file', async()=>{
       const response = await request('/', 'head');
-      assert.strictEqual(response.status, 200);
+      checkStatus(response, expectedStatusCode);
     });
     it('GET request to a sub directory with an existing index file', async()=>{
       const response = await request('/dir1/dir3/', 'head');
-      assert.strictEqual(response.status, 200);
+      checkStatus(response, expectedStatusCode);
     });
   });
   describe('301 Moved Permanently',()=>{
+    const expectedStatusCode = 301;
     it('HEAD request to a directory with an index without the trailing slash', async()=>{
       const response = await request('/dir1', 'head');
-      assert.strictEqual(response.status, 301);
+      checkStatus(response, expectedStatusCode);
       assert.strictEqual(response.headers.get('location'), '/dir1/');
     });
     it('GET request to a sub directory with an index without the trailing slash', async()=>{
       const response = await request('/dir1/dir3', 'get');
-      assert.strictEqual(response.status, 301);
+      checkStatus(response, expectedStatusCode);
       assert.strictEqual(response.headers.get('location'), '/dir1/dir3/');
     });
   });
   describe('304 Not Modified', ()=>{
+    const expectedStatusCode = 304;
+    /**
+     * @param {Response} response
+     * @param {string} expectedETag
+     */
+    const checkETag=(response,expectedETag)=>{
+      assert.strictEqual(response.headers.get('etag'), expectedETag);
+    };
     it('HEAD request to an image file', async()=>{
       const etag = '+X9YZcJ547YGJ7jhunUrmRXjhy3ygUrrIhckuNIy1mY';
       const response = await request('/1px.jpg', 'head', { 'If-None-Match': etag });
-      assert.strictEqual(response.headers.get('etag'), etag);
-      assert.strictEqual(response.status, 304);
+      checkETag(response, etag);
+      checkStatus(response, expectedStatusCode);
     });
     it('GET request to a directory index file', async()=>{
       const etag = '9VY0i3gpHKQsFLVJVjK9HOMnWhFHOd+F31ArxHssWNw';
       const response = await request('/dir1/dir3/', 'head', { 'If-None-Match': etag });
-      assert.strictEqual(response.headers.get('etag'), etag);
-      assert.strictEqual(response.status, 304);
+      checkETag(response, etag);
+      checkStatus(response, expectedStatusCode);
     });
     it('HEAD request to a javascript file', async()=>{
       const etag = 'bBXtwZqz5iyXqKK1XZsZbAyuMEkl8HiofD-GhqEcJk4';
       const response = await request('/other/dir1/script.js', 'head', { 'If-None-Match': etag });
-      assert.strictEqual(response.headers.get('etag'), etag);
-      assert.strictEqual(response.status, 304);
+      checkETag(response, etag);
+      checkStatus(response, expectedStatusCode);
     });
   });
 });
 
 describe('Cache-Control',()=>{
+  /**
+   * @param {Response} response
+   * @param {string...} expectedDirectives
+   */
+  const checkCacheControl=(response, ...expectedDirectives)=>{
+    const cacheControls = response.headers.get('cache-control').split(',');
+    for (const directive of expectedDirectives) {
+      assert.strictEqual(cacheControls.find(it=>it===directive), directive);
+    }
+  };
+  /**
+   * @param {Response} response
+   */
+  const checkETag=(response)=>{
+    assert.strictEqual([...response.headers.keys()].find(it=>it==='etag'), 'etag');
+  };
   describe('Resources with potential frequent modifications',()=>{
     it('HEAD request to a javascript file', async()=>{
       const response = await request('/dir1/script.js', 'head');
-      const cacheControls = response.headers.get('cache-control').split(',');
-      assert.strictEqual(cacheControls.find(it=>it==='public'), 'public');
-      assert.strictEqual(cacheControls.find(it=>it==='no-cache'), 'no-cache');
-      assert.strictEqual([...response.headers.keys()].find(it=>it==='etag'), 'etag');
+      checkCacheControl(response,'public', 'no-cache');
+      checkETag(response);
     });
     it('GET request to a javascript module file', async()=>{
       const response = await request('/dir1/module.mjs', 'get');
-      const cacheControls = response.headers.get('cache-control').split(',');
-      assert.strictEqual(cacheControls.find(it=>it==='public'), 'public');
-      assert.strictEqual(cacheControls.find(it=>it==='no-cache'), 'no-cache');
-      assert.strictEqual([...response.headers.keys()].find(it=>it==='etag'), 'etag');
+      checkCacheControl(response,'public', 'no-cache');
+      checkETag(response);
     });
     it('HEAD request to a css file', async()=>{
       const response = await request('/dir1/a.css', 'head');
-      const cacheControls = response.headers.get('cache-control').split(',');
-      assert.strictEqual(cacheControls.find(it=>it==='public'), 'public');
-      assert.strictEqual(cacheControls.find(it=>it==='no-cache'), 'no-cache');
-      assert.strictEqual([...response.headers.keys()].find(it=>it==='etag'), 'etag');
+      checkCacheControl(response,'public', 'no-cache');
+      checkETag(response);
     });
     it('GET request to an html file', async()=>{
       const response = await request('/dir1/a.html', 'get');
-      const cacheControls = response.headers.get('cache-control').split(',');
-      assert.strictEqual(cacheControls.find(it=>it==='public'), 'public');
-      assert.strictEqual(cacheControls.find(it=>it==='no-cache'), 'no-cache');
-      assert.strictEqual([...response.headers.keys()].find(it=>it==='etag'), 'etag');
+      checkCacheControl(response,'public', 'no-cache');
+      checkETag(response);
     });
   });
   describe('Resources with infrequent modifications',()=>{
     it('HEAD request to text file', async()=>{
       const response = await request('/dir2/info.txt', 'head');
-      const cacheControls = response.headers.get('cache-control').split(',');
-      assert.strictEqual(cacheControls.find(it=>it==='public'), 'public');
-      assert.strictEqual(cacheControls.find(it=>it==='must-revalidate'), 'must-revalidate');
-      assert.strictEqual(cacheControls.find(it=>it==='max-age=86400'), 'max-age=86400');
-      assert.strictEqual([...response.headers.keys()].find(it=>it==='etag'), 'etag');
+      checkCacheControl(response,'public', 'must-revalidate', 'max-age=86400');
+      checkETag(response);
     });
     it('GET request to a json file', async()=>{
       const response = await request('/dir2/data.json', 'get');
       const cacheControls = response.headers.get('cache-control').split(',');
-      assert.strictEqual(cacheControls.find(it=>it==='public'), 'public');
-      assert.strictEqual(cacheControls.find(it=>it==='must-revalidate'), 'must-revalidate');
-      assert.strictEqual(cacheControls.find(it=>it==='max-age=3600'), 'max-age=3600');
-      assert.strictEqual([...response.headers.keys()].find(it=>it==='etag'), 'etag');
+      checkCacheControl(response,'public', 'must-revalidate', 'max-age=3600');
+      checkETag(response);
     });
   });
   describe('Immutable resources',()=>{
     it('HEAD request to an image file', async()=>{
       const response = await request('/1px.jpg', 'head');
-      const cacheControls = response.headers.get('cache-control').split(',');
-      assert.strictEqual(cacheControls.find(it=>it==='public'), 'public');
-      assert.strictEqual(cacheControls.find(it=>it==='immutable'), 'immutable');
-      assert.strictEqual([...response.headers.keys()].find(it=>it==='etag'), 'etag');
+      checkCacheControl(response,'public', 'immutable');
+      checkETag(response);
     });
     it('GET request to an image file', async()=>{
       const response = await request('/1px.png', 'get');
-      const cacheControls = response.headers.get('cache-control').split(',');
-      assert.strictEqual(cacheControls.find(it=>it==='public'), 'public');
-      assert.strictEqual(cacheControls.find(it=>it==='immutable'), 'immutable');
-      assert.strictEqual([...response.headers.keys()].find(it=>it==='etag'), 'etag');
+      checkCacheControl(response,'public', 'immutable');
+      checkETag(response);
     });
   });
   describe('Disallowed shared cache', ()=>{
     it('HEAD request to an imagefile', async()=>{
       const response = await request('/other/1px.png', 'head');
-      const cacheControls = response.headers.get('cache-control').split(',');
-      assert.strictEqual(cacheControls.find(it=>it==='private'), 'private');
-      assert.strictEqual(cacheControls.find(it=>it==='immutable'), 'immutable');
-      assert.strictEqual([...response.headers.keys()].find(it=>it==='etag'), 'etag');
+      checkCacheControl(response,'private', 'immutable');
+      checkETag(response);
     });
     it('GET request to a json file', async()=>{
       const response = await request('/other/dir2/data.json', 'get');
-      const cacheControls = response.headers.get('cache-control').split(',');
-      assert.strictEqual(cacheControls.find(it=>it==='private'), 'private');
-      assert.strictEqual(cacheControls.find(it=>it==='must-revalidate'), 'must-revalidate');
-      assert.strictEqual(cacheControls.find(it=>it==='max-age=3600'), 'max-age=3600');
-      assert.strictEqual([...response.headers.keys()].find(it=>it==='etag'), 'etag');
+      checkCacheControl(response,'private', 'must-revalidate', 'max-age=3600');
+      checkETag(response);
     });
   });
 });

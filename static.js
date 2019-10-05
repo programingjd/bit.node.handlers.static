@@ -2,6 +2,24 @@ const fs=require('fs').promises;
 const zlib=require('zlib');
 const crypto=require('crypto');
 
+/**
+ * @typedef {Object<string,string>} Headers
+ * @property {string} Content-Type
+ * @property {string} Cache-Control
+ * @property {string} *
+ */
+/**
+ * @typedef {Object<string,*>} FileTypeConfiguration
+ * @property {Headers} headers
+ * @property {boolean} compress
+ */
+/**
+ * @typedef {Object<string,FileTypeConfiguration>} AllowedFileTypes
+ */
+
+/**
+ * @type {AllowedFileTypes}
+ */
 const types={
   js: { headers: {'Content-Type':'application/javascript','Cache-Control':'public,no-cache'}, compress: true },
   mjs: { headers: {'Content-Type':'application/javascript','Cache-Control':'public,no-cache'}, compress: true },
@@ -45,6 +63,11 @@ const types={
   manifest: { headers: {'Content-Type':'application/manifest+json','Cache-Control':'public,max-age=3600,must-revalidate'}, compress: true },
 };
 
+/**
+ * Performs a gzip compression with the max compression level.
+ * @param {Buffer} uncompressed
+ * @returns {Promise<Buffer>}
+ */
 const gz=async uncompressed=>{
   return new Promise((resolve)=>{
     const options = { level: 9 };
@@ -52,6 +75,12 @@ const gz=async uncompressed=>{
   });
 };
 
+/**
+ * Performs a brotli compression with the max compression level.
+ * @param {Buffer} uncompressed
+ * @param {boolean} isText
+ * @returns {Promise<Buffer>}
+ */
 const br=async (uncompressed,isText)=>{
   return new Promise((resolve)=>{
     const mode=isText?zlib.constants.BROTLI_MODE_TEXT:zlib.constants.BROTLI_MODE_GENERIC;
@@ -66,21 +95,57 @@ const br=async (uncompressed,isText)=>{
   });
 };
 
+/**
+ * Finds out if the content is plain text or not from the content type.
+ * @param {Headers} headers
+ * @returns {boolean}
+ */
+const isText=headers=>{
+  const contentType = headers['Content-Type'];
+  return contentType.indexOf('text/') === 0 || contentType.indexOf('json') > 0 || contentType.indexOf('xml') > 0;
+};
+
+/**
+ * Calculates the ETag value from the resource content.
+ * @param {Buffer} data
+ * @returns {string}
+ */
 const etag=data=>{
   const hash=crypto.createHash('sha256').update(data).digest('base64');
   return hash.replace(/[/]/g,'-').replace(/[=]/g,'');
 };
 
-const bestSupportedEncoding=headers=>{
-  const acceptEncodingHeader=(headers['accept-encoding']||'').trim();
-  if(!acceptEncodingHeader) return null;
-  if(acceptEncodingHeader==='*') return 'br';
-  const list=acceptEncodingHeader.split(',').map(it=>it.replace(/;.*$/g,'').trim());
-  if(list.indexOf('br')!==-1) return 'br';
-  if(list.indexOf('gzip')!==-1) return 'gzip';
-  return null;
+/**
+ * Supported encodings.
+ * @readonly
+ * @enum {string}
+ */
+const Encodings={
+  identity: 'identity',
+  gzip: 'gzip',
+  brotli: 'brotli'
 };
 
+/**
+ * Returns the best supported encoding.
+ * @param {IncomingHttpHeaders} headers
+ * @returns {Encodings}
+ */
+const bestSupportedEncoding=headers=>{
+  const acceptEncodingHeader=(headers['accept-encoding']||'').trim();
+  if(!acceptEncodingHeader) return Encodings.identity;
+  if(acceptEncodingHeader==='*') return Encodings.brotli;
+  const list=acceptEncodingHeader.split(',').map(it=>it.replace(/;.*$/g,'').trim());
+  if(list.indexOf('br')!==-1) return Encodings.brotli;
+  if(list.indexOf('gzip')!==-1) return Encodings.gzip;
+  return Encodings.identity;
+};
+
+/**
+ * Returns the path portion of the uri.
+ * @param {string} uri
+ * @returns {string}
+ */
 const uriPath=uri=>{
   const i1=uri.indexOf('?');
   const i2=uri.indexOf('#');
@@ -95,19 +160,22 @@ const uriPath=uri=>{
 };
 
 /**
- * @async
- * @params {string=} root
- * @params {string=} prefix
- * @params {boolean=} disallowSharedCache
- * @returns {{accept:function,handle:function}}
+ * @typedef {Object<Encodings,Buffer?>} Data
+ */
+/**
+ * @typedef {Object<string,string>} ResponseHeaders
+ */
+
+/**
+ * @params {string="www"} root
+ * @params {string=""} prefix
+ * @params {boolean=false} disallowSharedCache
+ * @template T
+ * @returns {Promise<{accept:function():T,handle:function(T)}>}
  */
 module.exports=async (root='www', prefix='', disallowSharedCache=false)=>{
   if (prefix&&prefix.charAt(prefix.length-1)==='/') prefix=prefix.substring(0,prefix.length-1);
-  /**
-   * @type {
-   *   Map<string, {headers:Object<string,string>,data?:{identity:Buffer,br:Buffer?,gzip:Buffer?}}>
-   * }
-   */
+  /** @type {Map<string, {headers:ResponseHeaders,data?:Data}>} */
   const cache=new Map();
   const sync=async ()=>{
     cache.clear();
@@ -140,7 +208,7 @@ module.exports=async (root='www', prefix='', disallowSharedCache=false)=>{
         const data=type.compress?{
           identity: uncompressed,
           gzip: await gz(uncompressed),
-          br: await br(uncompressed),
+          br: await br(uncompressed, isText(type.headers)),
         }:{ identity: uncompressed };
         cache.set(
           (prefix + it.path.substring(root.length)).
@@ -189,7 +257,7 @@ module.exports=async (root='www', prefix='', disallowSharedCache=false)=>{
       if(etag&&etag===found.headers['ETag']) return response.writeHead(304,headers).end();
       if(found.data.br||found.data.gzip){
         const encoding=bestSupportedEncoding(request.headers);
-        if(encoding){
+        if(encoding!==Encodings.identity){
           headers['Content-Encoding']=encoding;
           headers['Content-Length']=found.data[encoding].length;
           response.writeHead(200,headers);
