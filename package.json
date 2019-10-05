@@ -1,6 +1,6 @@
 {
   "name": "bit.node.handlers.static",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "nodejs http handler for serving static files",
   "main": "static.js",
   "scripts": {
@@ -21,11 +21,20 @@
   },
   "homepage": "https://github.com/programingjd/bit.node.handlers.static#readme",
   "bit": {
-    "env": {},
+    "env": {
+      "tester": "bit.envs/testers/mocha@5.0.2"
+    },
     "componentsDefaultDirectory": "lib/{name}",
-    "dependenciesDirectory": "lib",
+    "dependenciesDirectory": "test",
     "saveDependenciesAsComponents": true,
-    "packageManager": "npm"
+    "packageManager": "npm",
+    "overrides": {
+      "static.js": {
+        "devDependencies": {
+          "@bit.internal/data": "+"
+        }
+      }
+    }
   },
   "devDependencies": {
     "mocha": "^6.2.1"

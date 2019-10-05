@@ -23,7 +23,7 @@ const http = require('http');
 const staticDirectory = require('@bit/programingjd.node.handlers.static');
 
 (async()=>{
-  const handler = await staticDirectory('www');
+  const handler = await staticDirectory({root: 'www'});
   http.createServer((request, response)=>{
     const accepted = handler.accept(request, response);
     if (accepted) {

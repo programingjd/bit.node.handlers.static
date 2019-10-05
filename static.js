@@ -3,17 +3,20 @@ const zlib=require('zlib');
 const crypto=require('crypto');
 
 /**
+ * @name Headers
  * @typedef {Object<string,string>} Headers
  * @property {string} Content-Type
  * @property {string} Cache-Control
  * @property {string} *
  */
 /**
+ * @name FileTypeConfiguration
  * @typedef {Object<string,*>} FileTypeConfiguration
  * @property {Headers} headers
  * @property {boolean} compress
  */
 /**
+ * @name AllowedFileTypes
  * @typedef {Object<string,FileTypeConfiguration>} AllowedFileTypes
  */
 
@@ -65,6 +68,7 @@ const allowedTypes={
 
 /**
  * Performs a gzip compression with the max compression level.
+ * @private
  * @param {Buffer} uncompressed
  * @returns {Promise<Buffer>}
  */
@@ -77,6 +81,7 @@ const gz=async uncompressed=>{
 
 /**
  * Performs a brotli compression with the max compression level.
+ * @private
  * @param {Buffer} uncompressed
  * @param {boolean} isText
  * @returns {Promise<Buffer>}
@@ -97,6 +102,7 @@ const br=async (uncompressed,isText)=>{
 
 /**
  * Finds out if the content is plain text or not from the content type.
+ * @private
  * @param {Headers} headers
  * @returns {boolean}
  */
@@ -107,6 +113,7 @@ const isText=headers=>{
 
 /**
  * Calculates the ETag value from the resource content.
+ * @private
  * @param {Buffer} data
  * @returns {string}
  */
@@ -117,6 +124,7 @@ const etag=data=>{
 
 /**
  * Supported encodings.
+ * @private
  * @readonly
  * @enum {string}
  */
@@ -128,6 +136,7 @@ const Encodings={
 
 /**
  * Returns the best supported encoding.
+ * @private
  * @param {IncomingHttpHeaders} headers
  * @returns {Encodings}
  */
@@ -143,6 +152,7 @@ const bestSupportedEncoding=headers=>{
 
 /**
  * Returns the path portion of the uri.
+ * @private
  * @param {string} uri
  * @returns {string}
  */
@@ -173,7 +183,7 @@ const uriPath=uri=>{
 /**
  * @params {DirectoryOptions={}} options
  * @template T
- * @returns {Promise<{accept:function():T,handle:function(T)}>}
+ * @returns {Promise<{accept:function(request:IncomingMessage,response:ServerResponse,hostname:string,remoteAddress:string,local:boolean):T,handle:function(T)}>}
  */
 module.exports=async (options={})=>{
   options.root = options.root || 'www';
