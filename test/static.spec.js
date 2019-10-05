@@ -86,13 +86,38 @@ const request=(path,method=Methods.get,extraHeaders)=>new Promise((resolve,rejec
   request.setTimeout(3000).end();
 });
 
+/**
+ * Supported encodings.
+ * @readonly
+ * @enum {string}
+ */
+const Encodings={
+  identity: 'identity',
+  gzip: 'gzip',
+  brotli: 'br'
+};
+
 let server;
 
 before(async()=>{
-  const handler1 = await staticHandler('test/data');
-  const handler2 = await staticHandler('test/data', '/other', true);
+  const handler1 = await staticHandler({ root: 'test/data' });
+  const handler2 = await staticHandler({ root: 'test/data', prefix: '/other', disallowSharedCache: true });
+  const handler3 = await staticHandler({
+    root: 'test/data',
+    prefix: '/custom',
+    allowedFileTypes: {
+      abc: {
+        headers:{
+          'Content-Type':'text/plain',
+          'Cache-Control':'public,no-cache',
+          'X-Custom':'custom'
+        },
+        compress:true
+      }
+    }
+  });
   server = http.createServer((request, response)=>{
-    for(const handler of [handler1,handler2]){
+    for(const handler of [handler1,handler2,handler3]){
       const accepted = handler.accept(request, response);
       if (accepted) return handler.handle(accepted);
     }
@@ -345,16 +370,6 @@ describe('Content', ()=>{
   });
   describe('Compression', ()=>{
     /**
-     * Supported encodings.
-     * @readonly
-     * @enum {string}
-     */
-    const Encodings={
-      identity: 'identity',
-      gzip: 'gzip',
-      brotli: 'br'
-    };
-    /**
      * @param {Response} response
      * @param {Encodings} expectedEncoding
      */
@@ -363,56 +378,71 @@ describe('Content', ()=>{
     };
     describe('none', ()=>{
       it('HEAD request to a text file', async()=>{
-        const response = await request('/dir2/info.txt', Methods.head, { 'Accept-Encoding': 'entity' });
+        const response = await request('/dir2/info.txt', Methods.head, { 'Accept-Encoding': Encodings.identity });
         checkContentEncoding(response, Encodings.identity);
       });
       it('GET request to a json file', async()=>{
-        const response = await request('/other/data.json', Methods.get, { 'Accept-Encoding': 'entity' });
+        const response = await request('/other/data.json', Methods.get, { 'Accept-Encoding': Encodings.identity });
         checkContentEncoding(response, Encodings.identity);
         assert.strictEqual(response.body.toString().trim(), '{"root":true}')
       });
       it('HEAD request to a directory index file', async()=>{
-        const response = await request('/dir1/', Methods.head, { 'Accept-Encoding': 'entity' });
+        const response = await request('/dir1/', Methods.head, { 'Accept-Encoding': Encodings.identity });
         checkContentEncoding(response, Encodings.identity);
       });
       it('HEAD request to an image file', async()=>{
-        const response = await request('/1px.jpg', Methods.head, { 'Accept-Encoding': 'gzip' });
+        const response = await request('/1px.jpg', Methods.head, { 'Accept-Encoding': Encodings.gzip });
         checkContentEncoding(response, Encodings.identity);
       });
       it('HEAD request to an image file', async()=>{
-        const response = await request('/1px.jpg', Methods.head, { 'Accept-Encoding': 'br' });
+        const response = await request('/1px.jpg', Methods.head, { 'Accept-Encoding': Encodings.brotli });
         checkContentEncoding(response, Encodings.identity);
       });
     });
     describe('gzip', ()=>{
       it('HEAD request to a text file', async()=>{
-        const response = await request('/dir2/info.txt', Methods.head, { 'Accept-Encoding': 'gzip' });
+        const response = await request('/dir2/info.txt', Methods.head, { 'Accept-Encoding': Encodings.gzip });
         checkContentEncoding(response, Encodings.gzip);
       });
       it('GET request to a json file', async()=>{
-        const response = await request('/other/data.json', Methods.get, { 'Accept-Encoding': 'gzip' });
+        const response = await request('/other/data.json', Methods.get, { 'Accept-Encoding': Encodings.gzip });
         checkContentEncoding(response, Encodings.gzip);
         assert.strictEqual((await gz(response.body)).toString().trim(), '{"root":true}')
       });
       it('HEAD request to a directory index file', async()=>{
-        const response = await request('/dir1/', Methods.head, { 'Accept-Encoding': 'gzip' });
+        const response = await request('/dir1/', Methods.head, { 'Accept-Encoding': Encodings.gzip });
         checkContentEncoding(response, Encodings.gzip);
       });
     });
     describe('brotli', ()=>{
       it('HEAD request to a text file', async()=>{
-        const response = await request('/dir2/info.txt', Methods.head, { 'Accept-Encoding': 'br' });
+        const response = await request('/dir2/info.txt', Methods.head, { 'Accept-Encoding': Encodings.brotli });
         checkContentEncoding(response, Encodings.brotli);
       });
       it('GET request to a json file', async()=>{
-        const response = await request('/other/data.json', Methods.get, { 'Accept-Encoding': 'br' });
+        const response = await request('/other/data.json', Methods.get, { 'Accept-Encoding': Encodings.brotli });
         checkContentEncoding(response, Encodings.brotli);
         assert.strictEqual((await br(response.body)).toString().trim(), '{"root":true}')
       });
       it('HEAD request to a directory index file', async()=>{
-        const response = await request('/dir1/', Methods.head, { 'Accept-Encoding': 'br' });
+        const response = await request('/dir1/', Methods.head, { 'Accept-Encoding': Encodings.brotli });
         checkContentEncoding(response, Encodings.brotli);
       });
+    });
+  });
+});
+
+describe('Custom file type', ()=>{
+  describe('".abc" file type', ()=>{
+    it('GET request to an abc file', async()=>{
+      const response = await request('/custom/custom.abc', Methods.get, { 'Accept-Encoding': Encodings.brotli });
+      assert.strictEqual(response.status, 200);
+      assert.strictEqual(response.headers.get('content-type'), 'text/plain');
+      assert.strictEqual(response.headers.get('cache-control'), 'public,no-cache');
+      assert.strictEqual(response.headers.get('x-custom'), 'custom');
+      assert.strictEqual(response.headers.get('content-encoding'), Encodings.brotli);
+      assert.strictEqual((await br(response.body)).toString().trim(), 'abc')
+
     });
   });
 });

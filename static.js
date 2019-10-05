@@ -20,7 +20,7 @@ const crypto=require('crypto');
 /**
  * @type {AllowedFileTypes}
  */
-const types={
+const allowedTypes={
   js: { headers: {'Content-Type':'application/javascript','Cache-Control':'public,no-cache'}, compress: true },
   mjs: { headers: {'Content-Type':'application/javascript','Cache-Control':'public,no-cache'}, compress: true },
   css: { headers: {'Content-Type':'text/css','Cache-Control':'public,no-cache'}, compress: true },
@@ -167,14 +167,23 @@ const uriPath=uri=>{
  */
 
 /**
- * @params {string="www"} root
- * @params {string=""} prefix
- * @params {boolean=false} disallowSharedCache
+ * @typedef {{root:string="www",prefix:string="",disallowSharedCache:boolean=false,allowedFileTypes?:AllowedFileTypes}} DirectoryOptions
+ */
+
+/**
+ * @params {DirectoryOptions} options
  * @template T
  * @returns {Promise<{accept:function():T,handle:function(T)}>}
  */
-module.exports=async (root='www', prefix='', disallowSharedCache=false)=>{
-  if (prefix&&prefix.charAt(prefix.length-1)==='/') prefix=prefix.substring(0,prefix.length-1);
+// module.exports=async (root='www', prefix='', disallowSharedCache=false)=>{
+module.exports=async options=>{
+  options.root = options.root || 'www';
+  options.prefix = options.prefix || '';
+  const root = options.root;
+  const prefix = (options.prefix&&options.prefix.charAt(options.prefix.length-1)==='/') ?
+                 options.prefix.substring(0,options.prefix.length-1) : options.prefix;
+  const disallowSharedCache = options.disallowSharedCache===true;
+  const types = options.allowedFileTypes || allowedTypes;
   /** @type {Map<string, {headers:ResponseHeaders,data?:Data}>} */
   const cache=new Map();
   const sync=async ()=>{
