@@ -259,20 +259,34 @@ module.exports=async (options={})=>{
         (async ()=>{
           try{
             await sync();
-            response.writeHead(200).end();
+            response.writeHead(200);
+            response.end();
           }
           catch(err){
-            response.writeHead(500,{'Content-Type':'text/plain'}).end(err.message);
+            response.writeHead(500,{'Content-Type':'text/plain'});
+            response.end(err.message);
           }
         })();
         return;
       }
       const method=request.method.toLowerCase();
-      if(method!=='head'&&method!=='get') return response.writeHead(405).end();
+      if(method!=='head'&&method!=='get'){
+        response.writeHead(405);
+        response.end();
+        return;
+      }
       const headers=Object.assign({ 'Server': 'Custom', 'Vary': 'Accept-Encoding' },found.headers);
-      if(!found.data) return response.writeHead(301,headers).end();
+      if(!found.data){
+        response.writeHead(301,headers);
+        response.end();
+        return;
+      }
       const etag=request.headers['if-none-match'];
-      if(etag&&etag===found.headers['ETag']) return response.writeHead(304,headers).end();
+      if(etag&&etag===found.headers['ETag']){
+        response.writeHead(304,headers);
+        response.end();
+        return;
+      }
       if(found.data.br||found.data.gzip){
         const encoding=bestSupportedEncoding(request.headers);
         if(encoding!==Encodings.identity){

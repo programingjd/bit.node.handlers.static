@@ -121,7 +121,8 @@ before(async()=>{
       const accepted = handler.accept(request, response);
       if (accepted) return handler.handle(accepted);
     }
-    response.writeHead(404).end();
+    response.writeHead(404);
+    response.end();
   });
   server.listen(port);
 });
