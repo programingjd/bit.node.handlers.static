@@ -4,6 +4,7 @@
   "description": "nodejs http handler for serving static files",
   "main": "static.js",
   "scripts": {
+    "ciinstall": "npm install --ignore-scripts"
     "preinstall": "npm list -g bit-bin -g || npm install bit-bin -g --unsafe-perm",
     "test": "mocha test/static.spec.js"
   },
