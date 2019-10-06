@@ -19,7 +19,7 @@ There's a special endpoint to trigger a synchronization event and re-read the fi
 
 ## Usage
 
-```javascript 1.8
+```javascript
 const http = require('http');
 const staticDirectory = require('@bit/programingjd.node.handlers.static');
 
@@ -30,9 +30,10 @@ const staticDirectory = require('@bit/programingjd.node.handlers.static');
     if (accepted) {
       handler.handle(accepted);
     } else {
-      response.writeHead(404).end();
+      response.writeHead(404);
+      response.end();
     }
   }).listen(80); 
-});
+})();
 ```
 
