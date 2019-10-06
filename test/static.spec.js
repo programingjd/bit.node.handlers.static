@@ -245,13 +245,13 @@ describe('Status Codes', ()=>{
       checkStatus(response, expectedStatusCode);
     });
     it('GET request to a directory index file', async()=>{
-      const etag = '9VY0i3gpHKQsFLVJVjK9HOMnWhFHOd+F31ArxHssWNw';
+      const etag = '+mVoTaHNjZDSLTD3Ea4xva9BSDMmAMD5uxS-ZXtGhuQ';
       const response = await request('/dir1/dir3/', Methods.head, { 'if-none-match': etag });
       checkETag(response, etag);
       checkStatus(response, expectedStatusCode);
     });
     it('HEAD request to a javascript file', async()=>{
-      const etag = 'bBXtwZqz5iyXqKK1XZsZbAyuMEkl8HiofD-GhqEcJk4';
+      const etag = 'UaJyO4VLYBzsVKv4mTmX4hzIusgqyWgRaYA--nkxjI8';
       const response = await request('/other/dir1/script.js', Methods.head, { 'if-none-match': etag });
       checkETag(response, etag);
       checkStatus(response, expectedStatusCode);
@@ -355,17 +355,17 @@ describe('Content', ()=>{
     it('HEAD request to a text file', async()=>{
       const response = await request('/dir2/info.txt', Methods.head);
       checkContentType(response, 'text/plain');
-      checkContentLength(response, 6);
+      checkContentLength(response, 5);
     });
     it('GET request to a json file', async()=>{
       const response = await request('/other/data.json', Methods.get);
       checkContentType(response, 'application/json');
-      checkContentLength(response, 15);
+      checkContentLength(response, 14);
     });
     it('HEAD request to a directory index file', async()=>{
       const response = await request('/dir1/', Methods.head);
       checkContentType(response, 'text/html');
-      checkContentLength(response, 131);
+      checkContentLength(response, 121);
     });
   });
   describe('Compression', ()=>{

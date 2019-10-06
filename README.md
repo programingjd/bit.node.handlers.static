@@ -2,6 +2,7 @@
 [![Bit.dev package](https://img.shields.io/badge/%20bit%20-programingjd.node%2Fhandlers%2Fstatic-blueviolet)](https://bit.dev/programingjd/node/handlers/static)
 [![GitHub package.json version](https://img.shields.io/github/package-json/v/programingjd/bit.node.handlers.static)](https://bit.dev/programingjd/node/handlers/static)
 [![GitHub](https://img.shields.io/github/license/programingjd/bit.node.handlers.static)](LICENSE)
+![Travis (.org)](https://img.shields.io/travis/programingjd/bit.node.handlers.static)
 
 Node.js module.
 
