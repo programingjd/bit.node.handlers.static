@@ -3,6 +3,7 @@
 [![GitHub package.json version](https://img.shields.io/github/package-json/v/programingjd/bit.node.handlers.static)](https://bit.dev/programingjd/node/handlers/static)
 [![GitHub](https://img.shields.io/github/license/programingjd/bit.node.handlers.static)](LICENSE)
 ![Travis (.org)](https://img.shields.io/travis/programingjd/bit.node.handlers.static)
+![Coveralls github](https://img.shields.io/coveralls/github/programingjd/bit.node.handlers.static)
 
 Node.js module.
 
