@@ -38,3 +38,114 @@ const staticDirectory = require('@bit/programingjd.node.handlers.static');
 })();
 ```
 
+## Options
+
+- `root`  (string)
+
+  The path of the directory to serve.
+  
+  It defaults to `'www'`.
+  
+- `prefix`  (string)
+
+  The path prefix to use for serving the files.
+  
+  It defaults to `''` (no prefix).
+  
+  Example:
+  
+  `root = 'www'` and `prefix = 'files'`
+  
+  `/files/doc.html` on the server points to `./www/doc.html` on disk.
+  
+- `disallowSharedCache`  (boolean)
+
+  If you require authorization to access these static files, you can prevent browsers
+  from storing the cached data in a shared cache  by setting this option to `true`.
+  
+  It defaults to `false` (caching in a shared cache is allowed).
+
+- `allowedFileTypes`  (object)
+
+  You can override the default list of supported file types and provide your own.
+  
+  It defaults to the built-in file type list (see below for details).
+  
+  Example:
+  
+  ``` json
+  {
+    html: {
+      headers: { 
+        'Content-Type': 'text/html',
+        'Cache-Control': 'public,no-cache' 
+      },
+      compress: true
+    },
+    css: {
+      headers: { 
+        'Content-Type': 'text/css',
+        'Cache-Control': 'public,no-cache' 
+      },
+      compress: true  
+    },
+    js: {
+      headers: { 
+        'Content-Type': 'application/javascript',
+       'Cache-Control': 'public,no-cache' 
+      },
+      compress: true  
+    }
+  }
+  ```
+
+  Note that for the headers, you need to provide at least `Content-Type` and `Cache-Control`.
+  For `Cache-Control`, you have to provide the `public` directive even if it is the default,
+  so that it can be replaced with `private` automatically when the `disallowSharedCache` is set.
+  
+  Setting `compress` to true triggers the automatic gzip and brotli compression.
+  
+  
+## Default file types
+
+  File extensions
+
+  - .js (javascript file)
+  - .mjs (javascript module)
+  - .css (css file)
+  - .map (css or javascript map file)
+  - .htm and .html (html file)
+  - .txt (text file)
+  - .csv (csv file)
+  - .md  (markdown file)
+  - .adoc (asciidoc file)
+  - .xml (xml file)
+  - .gpx (gpx file)
+  - .json (json file)
+  - .jsonld (json-ld file)
+  - .geojson (geojson file)
+  - .topojson (topojson file)
+  - .yml and .yaml (yaml file)
+  - .woff (woff font file)
+  - .woff2 (woff2 font file)
+  - .jpg (jpeg image)
+  - .png (png image)
+  - .svg (svg image)
+  - .ico (icon image)
+  - .webp (webp image)
+  - .mp4 (mp4 video)
+  - .webm (webm video)
+  - .zip (zip archive)
+  - .epub (epub ebook)
+  - .pdf (pdf document)
+  - .wav (wav audio)
+  - .mp3 (mp3 audio)
+  - .aac (aac audio)
+  - .wasm (wasm binary file)
+  - .wat (wasm text file)
+  - .sig (pgp signature file)
+  - .bin (binary file)
+  - .glsl (glsl shader)
+  - .gltf (gltf model)
+  - .glb (gltf binary model)
+  - .manifest (web manifest)
