@@ -249,7 +249,7 @@ module.exports=async (options={})=>{
       const path=uriPath(request.url);
       const found=cache.get(path);
       if(!found){
-        return request.url==='/sync'&&local?[ null,request,response ]:null;
+        return request.url===`${prefix}/sync`&&local?[ null,request,response ]:null;
       }
       return [ found,request,response ];
     },

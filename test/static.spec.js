@@ -101,7 +101,7 @@ let server;
 
 before(async()=>{
   const handler1 = await staticHandler({ root: 'test/data' });
-  const handler2 = await staticHandler({ root: 'test/data', prefix: '/other', disallowSharedCache: true });
+  const handler2 = await staticHandler({ root: 'test/data', prefix: '/other/', disallowSharedCache: true });
   const handler3 = await staticHandler({
     root: 'test/data',
     prefix: '/custom',
@@ -118,8 +118,12 @@ before(async()=>{
   });
   server = http.createServer((request, response)=>{
     for(const handler of [handler1,handler2,handler3]){
-      const accepted = handler.accept(request, response);
-      if (accepted) return handler.handle(accepted);
+      const accepted = handler.accept(
+        request, response,
+        'localhost', request.connection.remoteAddress,
+        typeof request.headers['x-non-local'] !== 'string'
+      );
+      if (accepted || request.url==='/test') return handler.handle(accepted);
     }
     response.writeHead(404);
     response.end();
@@ -214,6 +218,18 @@ describe('Status Codes', ()=>{
     });
     it('GET request to a sub directory with an existing index file', async()=>{
       const response = await request('/dir1/dir3/', Methods.head);
+      checkStatus(response, expectedStatusCode);
+    });
+    it('HEAD request to an existing image file with an uri query', async()=>{
+      const response = await request('/1px.jpg?a=1', Methods.head);
+      checkStatus(response, expectedStatusCode);
+    });
+    it('GET request to a sub directory with an existing index file with an uri fragment', async()=>{
+      const response = await request('/dir1/dir3/#top', Methods.head);
+      checkStatus(response, expectedStatusCode);
+    });
+    it('GET request to an existing json file in a sub directory with an fragment and query', async()=>{
+      const response = await request('/dir2/data.json?test=true#start', Methods.head);
       checkStatus(response, expectedStatusCode);
     });
   });
@@ -429,6 +445,11 @@ describe('Content', ()=>{
         const response = await request('/dir1/', Methods.head, { 'Accept-Encoding': Encodings.brotli });
         checkContentEncoding(response, Encodings.brotli);
       });
+      it('GET request to a json file with unrestricted encoding', async()=>{
+        const response = await request('/other/data.json', Methods.get, { 'Accept-Encoding': '*' });
+        checkContentEncoding(response, Encodings.brotli);
+        assert.strictEqual((await br(response.body)).toString().trim(), '{"root":true}')
+      });
     });
   });
 });
@@ -444,6 +465,33 @@ describe('Custom file type', ()=>{
       assert.strictEqual(response.headers.get('content-encoding'), Encodings.brotli);
       assert.strictEqual((await br(response.body)).toString().trim(), 'abc')
 
+    });
+  });
+});
+
+describe('Synchronization endpoint', ()=>{
+  describe('Status code', ()=>{
+    it('GET request to /sync', async()=>{
+      const response = await request('/sync', Methods.get);
+      assert.strictEqual(response.status, 200);
+    });
+    it('GET request to /other/sync', async()=>{
+      const response = await request('/other/sync', Methods.get);
+      assert.strictEqual(response.status, 200);
+    });
+    it('GET request to /custom/sync', async()=>{
+      const response = await request('/custom/sync', Methods.get);
+      assert.strictEqual(response.status, 200);
+    });
+    it('GET request to /invalid_prefix/sync', async()=>{
+      const response = await request('/invalid_prefix/sync', Methods.get);
+      assert.strictEqual(response.status, 404);
+    });
+  });
+  describe('Simulated request to /sync from non local ip', ()=>{
+    it('accept to /sync with local=false', async()=>{
+      const response = await request('/sync', Methods.get, { 'X-Non-Local': 'true' });
+      assert.strictEqual(response.status, 404);
     });
   });
 });

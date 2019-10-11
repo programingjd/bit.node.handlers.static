@@ -27,7 +27,7 @@ const staticDirectory = require('@bit/programingjd.node.handlers.static');
 (async()=>{
   const handler = await staticDirectory({root: 'www'});
   http.createServer((request, response)=>{
-    const accepted = handler.accept(request, response);
+    const accepted = handler.accept(request, response, 'not_used', request.connection.remoteAddress);
     if (accepted) {
       handler.handle(accepted);
     } else {
