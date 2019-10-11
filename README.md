@@ -75,26 +75,26 @@ const staticDirectory = require('@bit/programingjd.node.handlers.static');
   
   ``` json
   {
-    html: {
-      headers: { 
-        'Content-Type': 'text/html',
-        'Cache-Control': 'public,no-cache' 
+    "html": {
+      "headers": {
+        "Content-Type": "text/html",
+        "Cache-Control": "public,no-cache" 
       },
-      compress: true
+      "compress": true
     },
-    css: {
-      headers: { 
-        'Content-Type': 'text/css',
-        'Cache-Control': 'public,no-cache' 
+    "css": {
+      "headers": {
+        "Content-Type": "text/css",
+        "Cache-Control": "public,no-cache" 
       },
-      compress: true  
+      "compress": true
     },
-    js: {
-      headers: { 
-        'Content-Type': 'application/javascript',
-       'Cache-Control': 'public,no-cache' 
+    "js": {
+      "headers": {
+        "Content-Type": "application/javascript",
+        "Cache-Control": "public,no-cache" 
       },
-      compress: true  
+      "compress": true
     }
   }
   ```
