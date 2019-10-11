@@ -4,6 +4,11 @@
     "programingjd.node/handlers/static@2.0.0": {
         "files": [
             {
+                "relativePath": "README.md",
+                "test": false,
+                "name": "README.md"
+            },
+            {
                 "relativePath": "static.js",
                 "test": false,
                 "name": "static.js"
@@ -12,18 +17,6 @@
         "mainFile": "static.js",
         "origin": "AUTHORED",
         "exported": true
-    },
-    "readme": {
-        "files": [
-            {
-                "relativePath": "README.md",
-                "test": false,
-                "name": "README.md"
-            }
-        ],
-        "mainFile": "README.md",
-        "origin": "AUTHORED",
-        "exported": false
     },
     "version": "14.4.0"
 }
