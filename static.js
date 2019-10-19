@@ -184,7 +184,7 @@ const uriPath=uri=>{
 /**
  * @params {DirectoryOptions={}} options
  * @template T
- * @returns {Promise<{accept:function(request:IncomingMessage,response:ServerResponse,hostname:string,remoteAddress:string,local:boolean):T,handle:function(T)}>}
+ * @returns {Promise<{accept:function(request:IncomingMessage,response:ServerResponse,hostname:string,remoteAddress:string):T,handle:function(T)}>}
  */
 module.exports=async (options={})=>{
   options.root = options.root || 'www';
@@ -246,11 +246,11 @@ module.exports=async (options={})=>{
   };
   await sync();
   return {
-    accept: (request,response,hostname,remoteAddress,local)=>{
+    accept: (request,response,hostname,remoteAddress)=>{
       const path=uriPath(request.url);
       const found=cache.get(path);
       if(!found){
-        return request.url===`${prefix}/sync`&&local?[ null,request,response ]:null;
+        return request.url===`${prefix}/sync`&&remoteAddress==='127.0.0.1'?[ null,request,response ]:null;
       }
       return [ found,request,response ];
     },

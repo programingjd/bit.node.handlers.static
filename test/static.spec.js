@@ -120,8 +120,7 @@ before(async()=>{
     for(const handler of [handler1,handler2,handler3]){
       const accepted = handler.accept(
         request, response,
-        'localhost', request.connection.remoteAddress,
-        typeof request.headers['x-non-local'] !== 'string'
+        'localhost', typeof request.headers['x-non-local'] === 'string' ? '127.0.0.2' : '127.0.0.1',
       );
       if (accepted || request.url==='/test') return handler.handle(accepted);
     }
