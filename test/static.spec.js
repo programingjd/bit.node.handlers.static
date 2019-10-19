@@ -75,7 +75,7 @@ const request=(path,method=Methods.get,extraHeaders)=>new Promise((resolve,rejec
   });
   request.on('close', ()=>{
     if (error) reject(error);
-    resolve(
+    else resolve(
       {
         status: status,
         headers: headers,
