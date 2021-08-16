@@ -21,6 +21,20 @@ const crypto=require('crypto');
  */
 
 /**
+ * @type {Object<string,string>}
+ */
+const defaultHeaders={
+  'Strict-Transport-Security': 'max-age=86400',
+  'Vary': 'Accept-Encoding',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'X-XSS-Protection': '1; mode=block',
+  'Cross-Origin-Resource-Policy': 'same-origin',
+  'Cross-Origin-Embedder-Policy': 'require-corp',
+  'Cross-Security-Policy': "default-src 'self' 'unsafe-inline'; worker-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none",
+}
+
+/**
  * @type {AllowedFileTypes}
  */
 const allowedTypes={
@@ -187,8 +201,9 @@ const uriPath=uri=>{
  * @returns {Promise<{accept:function(request:IncomingMessage,response:ServerResponse,hostname:string,remoteAddress:string):T,handle:function(T)}>}
  */
 module.exports=async (options={})=>{
-  options.root = options.root || 'www';
-  options.prefix = options.prefix || '';
+  options.root=options.root || 'www';
+  options.prefix=options.prefix || '';
+  options.headers=Object.assign(defaultHeaders,options.headers);
   const root = options.root;
   const prefix = (options.prefix&&options.prefix.charAt(options.prefix.length-1)==='/') ?
                  options.prefix.substring(0,options.prefix.length-1) : options.prefix;
@@ -276,7 +291,7 @@ module.exports=async (options={})=>{
         response.end();
         return;
       }
-      const headers=Object.assign({ 'Server': 'Custom', 'Vary': 'Accept-Encoding' },found.headers);
+      const headers=Object.assign(defaultHeaders, found.headers);
       if(!found.data){
         response.writeHead(301,headers);
         response.end();

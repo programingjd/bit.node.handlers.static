@@ -65,6 +65,12 @@ const staticDirectory = require('@bit/programingjd.node.handlers.static');
   
   It defaults to `false` (caching in a shared cache is allowed).
 
+- `headers` (object)
+
+  You can override the default headers (hsts, csp, ...) by specifying your own values. 
+  By default, the security restrictions are secure and you will need the security headers if you want to load
+  external resources for instance.
+
 - `allowedFileTypes`  (object)
 
   You can override the default list of supported file types and provide your own.
