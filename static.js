@@ -49,6 +49,9 @@ const allowedTypes={
   md: { headers: {'Content-Type':'text/markdown','Cache-Control':'public,max-age=86400,must-revalidate'}, compress: true },
   adoc: { headers: {'Content-Type':'text/asciidoc','Cache-Control':'public,max-age=86400,must-revalidate'}, compress: true },
   xml: { headers: {'Content-Type':'application/xml','Cache-Control':'public,max-age=86400,must-revalidate'}, compress: true },
+  dtd: { headers: {'Content-Type':'application/xml-dtd','Cache-Control':'public,max-age=86400,must-revalidate'}, compress: true },
+  xsd: { headers: {'Content-Type':'application/xml','Cache-Control':'public,max-age=86400,must-revalidate'}, compress: true },
+  atom: { headers: {'Content-Type':'application/atom+xml','Cache-Control':'public,max-age=3600,must-revalidate'}, compress: true },
   gpx: { headers: {'Content-Type':'application/gpx+xml','Cache-Control':'public,max-age=86400,must-revalidate'}, compress: true },
   json: { headers: {'Content-Type':'application/json','Cache-Control':'public,max-age=3600,must-revalidate'}, compress: true },
   jsonld: { headers: {'Content-Type':'application/ld+json','Cache-Control':'public,max-age=3600,must-revalidate'}, compress: true },
@@ -56,10 +59,14 @@ const allowedTypes={
   topojson: { headers: {'Content-Type':'application/json','Cache-Control':'public,max-age=86400,must-revalidate'}, compress: true },
   yml: { headers: {'Content-Type':'text/yaml','Cache-Control':'public,max-age=3600,must-revalidate'}, compress: true },
   yaml: { headers: {'Content-Type':'text/yaml','Cache-Control':'public,max-age=3600,must-revalidate'}, compress: true },
-  woff: { headers: {'Content-Type':'application/font-woff','Cache-Control':'public,immutable'}, compress: false },
+  otf: { headers: {'Content-Type':'font/otf','Cache-Control':'public,immutable'}, compress: false },
+  ttf: { headers: {'Content-Type':'font/ttf','Cache-Control':'public,immutable'}, compress: false },
+  woff: { headers: {'Content-Type':'font/woff','Cache-Control':'public,immutable'}, compress: false },
   woff2: { headers: {'Content-Type':'font/woff2','Cache-Control':'public,immutable'}, compress: false },
   jpg: { headers: {'Content-Type':'image/jpeg','Cache-Control':'public,immutable'}, compress: false },
   png: { headers: {'Content-Type':'image/png','Cache-Control':'public,immutable'}, compress: false },
+  tif: { headers: {'Content-Type':'image/tiff','Cache-Control':'public,immutable'}, compress: false },
+  tiff: { headers: {'Content-Type':'image/tiff','Cache-Control':'public,immutable'}, compress: false },
   svg: { headers: {'Content-Type':'image/svg+xml','Cache-Control':'public,immutable'}, compress: true },
   ico: { headers: {'Content-Type':'image/x-icon','Cache-Control':'public,immutable'}, compress: false },
   webp: { headers: {'Content-Type':'image/webp','Cache-Control':'public,immutable'}, compress: false },
@@ -78,6 +85,7 @@ const allowedTypes={
   glsl: { headers: {'Content-Type':'text/plain','Cache-Control':'public,max-age=3600,must-revalidate'}, compress: true},
   gltf: { headers: {'Content-Type':'model/gltf+json','Cache-Control':'public,max-age=86400,must-revalidate'}, compress: true},
   glb: { headers: {'Content-Type':'model/gltf-binary','Cache-Control':'public,max-age=86400,must-revalidate'}, compress: true},
+  pbf: { headers: {'Content-Type':'application/x-protobuf','Cache-Control':'public,max-age=86400,must-revalidate'}, compress: false },
   manifest: { headers: {'Content-Type':'application/manifest+json','Cache-Control':'public,max-age=3600,must-revalidate'}, compress: true },
 };
 
@@ -210,9 +218,9 @@ module.exports=async (options={})=>{
   const disallowSharedCache = options.disallowSharedCache===true;
   const types = options.allowedFileTypes || allowedTypes;
   /** @type {Map<string, {headers:ResponseHeaders,data?:Data}>} */
-  const cache=new Map();
+  let cache=new Map();
   const sync=async ()=>{
-    cache.clear();
+    const updated=new Map();
     const walk=async dir=>{
       return (await Promise.all((await Promise.all(
         (await fs.readdir(dir)).
@@ -232,7 +240,7 @@ module.exports=async (options={})=>{
       if(it.directory){
         const path = prefix + it.path.substring(root.length);
         const location = `${path}/`.replace(/[/]{2,}/,'/');
-        cache.set(path, { headers: { 'Location': location } });
+        updated.set(path, { headers: { 'Location': location } });
       }
       else{
         const type=it.type;
@@ -244,20 +252,21 @@ module.exports=async (options={})=>{
           gzip: await gz(uncompressed),
           br: await br(uncompressed, isText(type.headers)),
         }:{ identity: uncompressed };
-        cache.set(
+        updated.set(
           (prefix + it.path.substring(root.length)).
             replace(/index.html$/,''),
           { data: data, headers: headers }
         );
       }
     }));
-    [...cache.entries()].sort((a,b)=>{return a[0]<b[0]?-1:1}).forEach(it=>{
+    [...updated.entries()].sort((a,b)=>{return a[0]<b[0]?-1:1}).forEach(it=>{
       if(it[1].data){
         if(it[1].data.br) console.log(`${it[0]} ${it[1].data.br.length} ${it[1].data.identity.length}`);
         else console.log(`${it[0]} ${it[1].data.identity.length}`);
       }
     });
     console.log('\n\n');
+    cache=updated;
   };
   await sync();
   return {

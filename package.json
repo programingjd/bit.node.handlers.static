@@ -1,12 +1,12 @@
 {
   "name": "bit.node.handlers.static",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "nodejs http handler for serving static files",
   "main": "static.js",
   "scripts": {
     "test": "nyc mocha test/static.spec.js",
     "coverage": "nyc report --reporter=text-lcov | coveralls",
-    "tag": "npx bit tag --all 1.0.6",
+    "tag": "npx bit tag --all 1.0.7",
     "export": "npx bit export"
   },
   "repository": {
