@@ -209,6 +209,7 @@ const uriPath=uri=>{
  * @returns {Promise<{accept:function(request:IncomingMessage,response:ServerResponse,hostname:string,remoteAddress:string):T,handle:function(T)}>}
  */
 module.exports=async (options={})=>{
+  const localAddresses=new Set(['127.0.0.1','::1']);
   options.root=options.root || 'www';
   options.prefix=options.prefix || '';
   options.headers=Object.assign(defaultHeaders,options.headers);
@@ -274,7 +275,7 @@ module.exports=async (options={})=>{
       const path=uriPath(request.url);
       const found=cache.get(path);
       if(!found){
-        return request.url===`${prefix}/sync`&&remoteAddress==='127.0.0.1'?[ null,request,response ]:null;
+        return request.url===`${prefix}/sync`&&localAddresses.has(remoteAddress)?[ null,request,response ]:null;
       }
       return [ found,request,response ];
     },
