@@ -97,7 +97,7 @@ const allowedTypes={
  */
 const gz=async uncompressed=>{
   return new Promise((resolve)=>{
-    const options = { level: 9 };
+    const options={ level: 9 };
     zlib.gzip(uncompressed, options,(err,compressed)=>resolve(compressed))
   });
 };
@@ -112,7 +112,7 @@ const gz=async uncompressed=>{
 const br=async (uncompressed,isText)=>{
   return new Promise((resolve)=>{
     const mode=isText?zlib.constants.BROTLI_MODE_TEXT:zlib.constants.BROTLI_MODE_GENERIC;
-    const options = {
+    const options={
       params: {
         [ zlib.constants.BROTLI_PARAM_MODE ]: mode,
         [ zlib.constants.BROTLI_PARAM_QUALITY ]: zlib.constants.BROTLI_MAX_QUALITY,
@@ -130,8 +130,10 @@ const br=async (uncompressed,isText)=>{
  * @returns {boolean}
  */
 const isText=headers=>{
-  const contentType = headers['Content-Type'];
-  return contentType.indexOf('text/') === 0 || contentType.indexOf('json') > 0 || contentType.indexOf('xml') > 0;
+  const contentType=headers['Content-Type'];
+  return contentType.indexOf('text/')===0 ||
+         contentType.indexOf('json')>0 ||
+         contentType.indexOf('xml')>0;
 };
 
 /**
@@ -193,34 +195,37 @@ const uriPath=uri=>{
 };
 
 /**
- * @typedef {Object<Encodings,Buffer?>} Data
+ * @typedef {Object<Encodings,?Buffer>} Data
  */
 /**
  * @typedef {Object<string,string>} ResponseHeaders
  */
 
 /**
- * @typedef {{root:string="www",prefix:string="",disallowSharedCache:boolean=false,allowedFileTypes?:AllowedFileTypes}} DirectoryOptions
+ * @typedef {Object<string,*>} DirectoryOptions
+ * @property {string} [root="www"]
+ * @property {string} [prefix=""]
+ * @property {?AllowedFileTypes} allowedFileTypes
  */
 
 /**
  * @params {DirectoryOptions={}} options
  * @template T
- * @returns {Promise<{accept:function(request:IncomingMessage,response:ServerResponse,hostname:string,remoteAddress:string):T,handle:function(T)}>}
+ * @returns {Promise<{accept:function(request:IncomingMessage|Http2ServerRequest,response:ServerResponse,hostname:string,remoteAddress:string):T,handle:function(T)}>}
  */
 module.exports=async (options={})=>{
   const localAddresses=new Set(['127.0.0.1','::1']);
   options.root=options.root || 'www';
   options.prefix=options.prefix || '';
   options.headers=Object.assign(defaultHeaders,options.headers);
-  const root = options.root;
-  const prefix = (options.prefix&&options.prefix.charAt(options.prefix.length-1)==='/') ?
-                 options.prefix.substring(0,options.prefix.length-1) : options.prefix;
-  const disallowSharedCache = options.disallowSharedCache===true;
-  const types = options.allowedFileTypes || allowedTypes;
+  const root=options.root;
+  const prefix=(options.prefix&&options.prefix.charAt(options.prefix.length-1)==='/') ?
+               options.prefix.substring(0,options.prefix.length-1) : options.prefix;
+  const disallowSharedCache=options.disallowSharedCache===true;
+  const types=options.allowedFileTypes || allowedTypes;
   /** @type {Map<string, {headers:ResponseHeaders,data?:Data}>} */
   let cache=new Map();
-  const sync=async ()=>{
+  const sync=async()=>{
     const updated=new Map();
     const walk=async dir=>{
       return (await Promise.all((await Promise.all(
@@ -239,8 +244,8 @@ module.exports=async (options={})=>{
     const files=[{ path: root, directory: true }, ...await walk(root)];
     await Promise.all(files.map(async it=>{
       if(it.directory){
-        const path = prefix + it.path.substring(root.length);
-        const location = `${path}/`.replace(/[/]{2,}/,'/');
+        const path=prefix + it.path.substring(root.length);
+        const location=`${path}/`.replace(/[/]{2,}/,'/');
         updated.set(path, { headers: { 'Location': location } });
       }
       else{
@@ -273,16 +278,21 @@ module.exports=async (options={})=>{
   return {
     accept: (request,response,hostname,remoteAddress)=>{
       const path=uriPath(request.url);
-      const found=cache.get(path);
+      // We attach the cache to the session so that it stays the same for the duration of the session.
+      // noinspection JSUnresolvedVariable
+      const sessionCache=request.stream&&request.stream.session?(
+        request.stream.session.cache||(request.stream.session.cache=cache)
+      ):cache;
+      const found=sessionCache.get(path);
       if(!found){
         return request.url===`${prefix}/sync`&&localAddresses.has(remoteAddress)?[ null,request,response ]:null;
       }
       return [ found,request,response ];
     },
     handle: (accepted)=>{
-      const  [ found,request,response ] = accepted;
+      const [ found,request,response ]=accepted;
       if(!found){
-        (async ()=>{
+        (async()=>{
           try{
             await sync();
             response.writeHead(200);
